@@ -1,0 +1,25 @@
+Redis版本:5.0.14
+/*
+*系统:Ubuntu 20.04(其他Ubuntu系统应该也适用,其他Linux则需要考虑转换下命令形式)
+*前置条件：有C/C++环境
+*Redis安装包可从本处获取
+*使用Redis版本:5.0.14
+*参考:
+*/
+安装流程:
+//0.下载两个安装包
+
+//1.安装tcl(如果没有，在安装Redis时会出现问题)
+//wget http://downloads.sourceforge.net/tcl/tcl8.6.1-src.tar.gz 下载tcl
+tar xzvf tcl8.6.1-src.tar.gz  -C /usr/local/  
+cd  /usr/local/tcl8.6.1/unix/  
+./configure  
+make  
+make install
+
+//2.安装Redis
+//https://redis.io/download 在官网下载安装包
+tar xzf redis-5.0.14.tar.gz
+cd redis-5.0.14
+make
+make test  //检验是否部署成功
