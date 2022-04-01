@@ -22,4 +22,5 @@ make install
 tar xzf redis-5.0.14.tar.gz
 cd redis-5.0.14
 make
+cd src
 make test  //检验是否部署成功
