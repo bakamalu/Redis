@@ -68,3 +68,110 @@ sdsgrowzero|用空字符将 SDS 扩展至给定长度。|O(N) ， N 为扩展新
 sdsrange|保留 SDS 给定区间内的数据， 不在区间内的数据会被覆盖或清除。|O(N) ， N 为被保留数据的字节数。
 sdstrim|接受一个 SDS 和一个 C 字符串作为参数， 从 SDS 左右两端分别移除所有在 C 字符串中出现过的字符。|O(M*N) ， M 为 SDS 的长度， N 为给定 C 字符串的长度。
 sdscmp|对比两个 SDS 字符串是否相同。|O(N) ， N 为两个 SDS 中较短的那个 SDS 的长度。
+
+## 第三章.链表
+### 链表结构
+链表节点使用一个adlist.h/listNode结构来表示:
+```
+typedef struct listNode{
+    //前置节点
+    struct listNode *prev;
+    
+    //后置节点
+    struct listNode *next;
+    
+    //节点的值
+    void *value;
+}listNode;
+```
+
+可以使用adlist.h/list来持有链表:
+```
+typedef struct list{
+    //表头节点
+    listNode *head;
+    
+    //表尾节点
+    listNode *tail;
+    
+    //链表所包含的节点数量
+    unsigned long len;
+    
+    //节点值复制函数 用于复制链表节点保存值
+    void *(*dup)(void *ptr);
+    
+    //节点值释放函数 用于释放链表节点所保存的值
+    void (*free) (void *ptr);
+    
+    //节点值对比函数 用于对比链表节点所保存值和另一个输入值是否相等
+    int (*match)(void *ptr,void *key);
+}list;
+```
+
+### Redis链表特性   
+**双端**(获取某节点前置后置节点复杂度O(1))    
+**无环**(表头prev表尾next指向NULL)    
+**带表头表尾指针**(对表头表尾节点获取复杂度O(1))  
+**带链表长度计数器**(获取链表长度复杂度O(1))  
+**多态**:(使用void*指针保存节点值，且可通过dup、free、match为节点值设置类型特定函数，故可保存不同类型值)
+
+### Redis API
+
+函数|作用|时间复杂度|
+| --- | --- | --- |
+listSetDupMethod|将给定的函数设置为链表的节点值复制函数|O(1) |
+listGetDupMethod|返回链表当前正在使用的节点值复制函数|复制函数可以通过链表的 dup 属性直接获得， O(1)|
+listSetFreeMethod|将给定的函数设置为链表的节点值释放函数|O(1) |
+listGetFree|返回链表当前正在使用的节点值释放函数|释放函数可以通过链表的 free 属性直接获得， O(1)|
+listSetMatchMethod|将给定的函数设置为链表的节点值对比函数|O(1)|
+listGetMatchMethod|返回链表当前正在使用的节点值对比函数|对比函数可以通过链表的 match 属性直接获得， O(1)|
+listLength|返回链表的长度（包含了多少个节点）|链表长度可以通过链表的 len 属性直接获得， O(1) |
+listFirst|返回链表的表头节点|表头节点可以通过链表的 head 属性直接获得， O(1) |
+listLast|返回链表的表尾节点|表尾节点可以通过链表的 tail 属性直接获得， O(1) |
+listPrevNode|返回给定节点的前置节点|前置节点可以通过节点的 prev 属性直接获得， O(1) |
+listNextNode|返回给定节点的后置节点|后置节点可以通过节点的 next 属性直接获得， O(1) |
+listNodeValue|返回给定节点目前正在保存的值|节点值可以通过节点的 value 属性直接获得， O(1) |
+listCreate|创建一个不包含任何节点的新链表|O(1)|
+listAddNodeHead|将一个包含给定值的新节点添加到给定链表的表头|O(1)|
+listAddNodeTail|将一个包含给定值的新节点添加到给定链表的表尾|O(1)|
+listInsertNode|将一个包含给定值的新节点添加到给定节点的之前或者之后|O(1)|
+listSearchKey|查找并返回链表中包含给定值的节点|O(N) ， N 为链表长度|
+listIndex|返回链表在给定索引上的节点|O(N) ， N 为链表长度|
+listDelNode|从链表中删除给定节点|O(1) |
+listRotate|将链表的表尾节点弹出，然后将被弹出的节点插入到链表的表头， 成为新的表头节点|O(1)|
+listDup|复制一个给定链表的副本|O(N) ， N 为链表长度|
+listRelease|释放给定链表，以及链表中的所有节点|O(N) ， N 为链表长度|
+
+
+## 第8章.对象
+### 简述
+5种主要数据结构:  
+简单动态字符串(SDS)、双端链表、字典、压缩列表、整数集合。  
+
+Redis基于这些数据结构创建了一个对象系统，包含:字符串对象、列表对象、哈希对象、集合对象和有序对象这五种类型对象，没种对象用到至少一种上述主要数据结构  
+
+### 对象结构:
+
+```
+typedef strict redisObject{
+    //类型
+    unsigned type:4;
+    
+    //编码
+    unsigned encoding:4;
+    
+    //指向底层实现数据结构的指针
+    void *ptr;
+}robj;
+```
+
+称呼一个键为"...键":指的是其值为"...对象"
+类型常量|对象的名称|创建方式|type属性值|type命令输出|
+| --- | --- | --- |---|---|
+REDIS_STRING|字符串对象|SET ... ...|REDIS_STRING|"string"|
+REDIS_LIST|列表对象|RPUSH ... ...|REDIS_LIST|"list"|
+REDIS_HASH|哈希对象|HMSET ... ...|	REDIS_HASH|	"hash"|
+REDIS_SET|集合对象|SADD ... ...|REDIS_SET|"set"|
+REDIS_ZSET|有序集合对象|ZADD ... ...|REDIS_ZSET|"zset"|
+
+### 编码、底层实现
